@@ -2,10 +2,10 @@ import sys
 import re
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QSplitter, QTextEdit, 
                              QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QLabel, QFrame)
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor, QPalette
 from bs4 import BeautifulSoup
+
 from ColorPalette import ColorPaletteDialog
+from SmartEditor import SmartTextEditor
 
 class TextEditor(QMainWindow):
     def __init__(self):
@@ -15,38 +15,26 @@ class TextEditor(QMainWindow):
     #프로그램 UI 설정
     def initUI(self):
         self.setWindowTitle('편집기 프로토타입')
-        self.setGeometry(100, 100, 1000, 600)
+        self.setGeometry(100, 100, 800, 600)
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
 
-        header = QLabel("[왼쪽] 텍스트 입력 및 붙여넣기 [오른쪽] HTML 소스코드 실시간 확인")
-        header.setFixedHeight(30)
-        layout.addWidget(header)
+        self.mode_layout = QHBoxLayout()
+        self.btn_toggle_view = QPushButton("HTML")
+        self.btn_toggle_view.setFixedWidth(150)
+        self.btn_toggle_view.clicked.connect(self.toggle_editor_mode)
+        self.mode_layout.addWidget(self.btn_toggle_view)
+        self.mode_layout.addStretch()
+        layout.addLayout(self.mode_layout)
         
         #body
-        splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.editor = SmartTextEditor()
+        self.editor.setAcceptRichText(True)
+        self.editor.setPlaceholderText("여기에 내용을 입력")
 
-        #body.left
-        self.left_editor = QTextEdit()
-        self.left_editor.setAcceptRichText(True)
-        self.left_editor.setPlaceholderText("여기에 내용을 입력")
-
-        self.left_editor.textChanged.connect(self.update_html_source)
-        
-        #body.right
-        self.right_editor = QTextEdit()
-        self.right_editor.setReadOnly(True)
-        self.right_editor.setStyleSheet("background-color: #2b2b2b; color: #a9b7c6; font-family: Consolas, monospace;")
-        self.right_editor.setPlaceholderText("HTML 소스는 여기에 표시")
-
-        splitter.addWidget(self.left_editor)
-        splitter.addWidget(self.right_editor)
-        splitter.setStretchFactor(0,1)
-        splitter.setStretchFactor(1,1)
-
-        layout.addWidget(splitter)
+        layout.addWidget(self.editor)
 
         #tool_box
         toolbar_widget = QWidget()
@@ -75,23 +63,37 @@ class TextEditor(QMainWindow):
 
         layout.addWidget(toolbar_widget)
 
-    #HTML 출력 함수
-    def update_html_source(self):
-        self.left_editor.blockSignals(True)
+        #현재 모드(False: 일반, True: HTML)
+        self.is_html_mode = False
 
-        raw_html = self.left_editor.toHtml()
-        clean_bg_html = re.sub(r'background-color:[^;]+;?', '', raw_html)
-        clean_bg_html = re.sub(r'background:[^;]+;?', '', clean_bg_html)
-        self.left_editor.setHtml(clean_bg_html)
-        self.left_editor.blockSignals(False)
+    def toggle_editor_mode(self):
+        if not self.is_html_mode:
+            raw_html = self.editor.toHtml()
 
-        soup = BeautifulSoup(raw_html, 'html.parser')
-        body = soup.find('body')
-        if body:
-            clean_html=""
-            for content in body.contents:
-                clean_html += str(content)
-        self.right_editor.setPlainText(clean_html.strip())
+            soup = BeautifulSoup(raw_html, 'html.parser')
+            body = soup.find('body')
+
+            if body:
+                clean_content = "".join(str(c) for c in body.contents)
+            else:
+                clean_content = raw_html
+
+            self.editor.setAcceptRichText(False)
+            self.editor.setPlainText(clean_content.strip())
+
+            self.btn_toggle_view.setText("일반 모드")
+            self.is_html_mode = True
+            self.editor.setStyleSheet("background-color: #2b2b2b; color: #a9b7c6;")
+
+        else:
+            current_source = self.editor.toPlainText()
+
+            self.editor.setAcceptRichText(True)
+            self.editor.setHtml(current_source)
+
+            self.btn_toggle_view.setText("HTML")
+            self.editor.setStyleSheet("background-color: #ffffff;")
+            self.is_html_mode = False
 
     #색상 추출
     def extract_and_display_colors(self):
@@ -105,7 +107,7 @@ class TextEditor(QMainWindow):
         self.color_palette_layout.addStretch()
 
         # 2. 색상 추출
-        html_data = self.left_editor.toHtml()
+        html_data = self.editor.toHtml()
         soup = BeautifulSoup(html_data, 'html.parser')
     
         color_table = set()
@@ -137,23 +139,33 @@ class TextEditor(QMainWindow):
         dialog = ColorPaletteDialog(self)
         
         if dialog.exec():
-            new_color_hex = dialog.selected_color 
+            new_color_hex = dialog.selected_color
+            if not new_color_hex:
+                return
             
-            #색상 변경 로직
-            if new_color_hex:
-                current_html = self.left_editor.toHtml()
-                escaped_old_color = re.escape(old_color)
-                clean_html = re.sub(
-                    fr'color:\s*{escaped_old_color}', 
-                    f'color: {new_color_hex}', 
-                    current_html, 
-                    flags=re.IGNORECASE
-                )
+            if self.is_html_mode:
+                current_text = self.editor.toPlainText()
+            else:
+                current_text = self.editor.toHtml()
 
-                self.left_editor.setHtml(clean_html)
-                
-                self.update_html_source()
-                self.extract_and_display_colors()
+            escaped_old_color = re.escape(old_color)
+            updated_text = re.sub(fr'color:\s*{escaped_old_color}', 
+                f'color: {new_color_hex}', 
+                current_text, 
+                flags=re.IGNORECASE
+            )
+            
+            if self.is_html_mode:
+                cursor = self.editor.textCursor()
+                pos = cursor.position()
+
+                self.editor.setPlainText(updated_text)
+                cursor.setPosition(pos)
+                self.editor.setTextCursor(cursor)
+            else:
+                self.editor.setHtml(updated_text)
+            
+            self.extract_and_display_colors()
 
 if __name__ == '__main__': 
     app = QApplication(sys.argv)
