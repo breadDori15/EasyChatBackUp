@@ -2,6 +2,7 @@ import sys
 import re
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QSplitter, QTextEdit, 
                              QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QLabel, QFrame)
+from PyQt6.QtGui import (QTextCharFormat, QColor)
 from bs4 import BeautifulSoup
 
 from ColorPalette import ColorPaletteDialog
@@ -21,13 +22,20 @@ class TextEditor(QMainWindow):
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
 
-        self.mode_layout = QHBoxLayout()
+        top_bar = QHBoxLayout()
+
         self.btn_toggle_view = QPushButton("HTML")
-        self.btn_toggle_view.setFixedWidth(150)
+        self.btn_toggle_view.setFixedWidth(120)
         self.btn_toggle_view.clicked.connect(self.toggle_editor_mode)
-        self.mode_layout.addWidget(self.btn_toggle_view)
-        self.mode_layout.addStretch()
-        layout.addLayout(self.mode_layout)
+        
+        self.btn_selection_color = QPushButton("선택 영역 색상 변경")
+        self.btn_selection_color.setStyleSheet("background-color: #3498db; color: white; font-weight: bold;")
+        self.btn_selection_color.clicked.connect(self.apply_color_to_selection)
+
+        top_bar.addWidget(self.btn_toggle_view)
+        top_bar.addWidget(self.btn_selection_color)
+        top_bar.addStretch()
+        layout.addLayout(top_bar)
         
         #body
         self.editor = SmartTextEditor()
@@ -167,6 +175,34 @@ class TextEditor(QMainWindow):
                 self.editor.setHtml(updated_text)
             
             self.extract_and_display_colors()
+
+    def apply_color_to_selection(self):
+        if self.is_html_mode:
+            print("HTML 모드에서는 직접 코드를 수정하세요.")
+            return
+
+        cursor = self.editor.textCursor()
+        
+        # 드래그된 영역이 있는지 확인
+        if not cursor.hasSelection():
+            print("색상을 변경할 텍스트를 드래그해주세요.")
+            return
+
+        # 컬러 다이얼로그 띄우기
+        dialog = ColorPaletteDialog(self)
+        if dialog.exec():
+            new_color_hex = dialog.selected_color
+            if new_color_hex:
+                # 서식 생성 및 적용
+                fmt = QTextCharFormat()
+                fmt.setForeground(QColor(new_color_hex))
+                
+                # 선택 영역에 서식 병합 (기존 폰트 등은 유지하고 색상만 변경)
+                cursor.mergeCharFormat(fmt)
+                self.editor.setTextCursor(cursor)
+                
+                # 하단 팔레트 즉시 갱신
+                self.extract_and_display_colors()
 
 if __name__ == '__main__': 
     app = QApplication(sys.argv)
