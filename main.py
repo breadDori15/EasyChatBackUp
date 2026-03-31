@@ -1,14 +1,19 @@
 import sys
-from PyQt6.QtWidgets import QApplication, QMainWindow, QSplitter, QTextEdit, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QLabel
+import re
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QSplitter, QTextEdit, 
+                             QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QLabel, 
+                             QColorDialog, QScrollArea, QFrame)
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QColor, QPalette
 from bs4 import BeautifulSoup
+from ColorPalette import ColorPaletteDialog
 
 class TextEditor(QMainWindow):
     def __init__(self):
         super().__init__()
         self.initUI()
 
-    #프로그램 UI 설정 함수
+    #프로그램 UI 설정
     def initUI(self):
         self.setWindowTitle('편집기 프로토타입')
         self.setGeometry(100, 100, 1000, 600)
@@ -44,15 +49,41 @@ class TextEditor(QMainWindow):
 
         layout.addWidget(splitter)
 
-
         #button
         button_layout = QHBoxLayout()
         self.btn_remove_bg = QPushButton("배경색 제거")
-        self.btn_remove_bg.clicked.connect(self.remove_background_colors)
+        self.btn_remove_bg.clicked.connect(self.remove_bg_colors)
         self.btn_remove_bg.setStyleSheet("background-color: #f39c12; color: white; font-weight: bold; padding: 5px;")
 
         button_layout.addWidget(self.btn_remove_bg)
         layout.addLayout(button_layout)
+
+        #tool_box
+        toolbar_widget = QWidget()
+        toolbar_widget.setFixedHeight(60)
+        toolbar_layout = QHBoxLayout(toolbar_widget)
+        toolbar_layout.setContentsMargins(10, 0, 10, 0)
+
+        self.btn_extract_colors = QPushButton("텍스트 색상 추출")
+        self.btn_extract_colors.clicked.connect(self.extract_and_display_colors)
+        self.btn_extract_colors.setStyleSheet("""
+            background-color: #2ecc71; color: white; font-weight: bold; 
+            padding: 8px 15px; border-radius: 4px;
+        """)
+        toolbar_layout.addWidget(self.btn_extract_colors)
+
+        self.color_palette = QFrame()
+        self.color_palette.setFrameShape(QFrame.Shape.StyledPanel)
+        self.color_palette.setFixedHeight(50)
+
+        self.color_palette_layout = QHBoxLayout(self.color_palette)
+        self.color_palette_layout.setContentsMargins(10, 0, 10, 0)
+        self.color_palette_layout.setSpacing(5)
+        self.color_palette_layout.addStretch()
+
+        toolbar_layout.addWidget(self.color_palette, 1)
+
+        layout.addWidget(toolbar_widget)
 
     #HTML 출력 함수
     def update_html_source(self):
@@ -66,15 +97,77 @@ class TextEditor(QMainWindow):
                 clean_html += str(content)
         self.right_editor.setPlainText(clean_html.strip())
 
-    def remove_background_colors(self):
+    #배경색 제거
+    def remove_bg_colors(self):
         current_html = self.left_editor.toHtml()
 
-        import re
         clean_html = re.sub(r'background-color:[^;]+;?', '', current_html)
         clean_html = re.sub(r'background:[^;]+;?', '', clean_html)
 
         self.left_editor.setHtml(clean_html)
         self.update_html_source()
+
+    #색상 추출
+    def extract_and_display_colors(self):
+        #레이아웃 초기화
+        while self.color_palette_layout.count():
+            item = self.color_palette_layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+
+        self.color_palette_layout.addStretch()
+
+        # 2. 색상 추출
+        html_data = self.left_editor.toHtml()
+        soup = BeautifulSoup(html_data, 'html.parser')
+    
+        color_table = set()
+        
+        for tag in soup.find_all(style=True):
+            style = tag['style']
+            found = re.findall(r'color:\s*(#[0-9a-fA-F]{6}|rgb\(\d+,\s*\d+,\s*\d+\))', style)
+            if found:
+                color_table.update(found)
+        
+        self.current_colors = list(color_table)
+        
+        # 3. 팔레트 버튼 생성
+        if not self.current_colors:
+            no_color_label = QLabel("추출된 색상이 없습니다.")
+            self.color_palette_layout.insertWidget(0, no_color_label)
+            return
+
+        for color_code in self.current_colors:
+            color_btn = QPushButton()
+            color_btn.setFixedSize(30, 30)
+            color_btn.setStyleSheet(f"background-color: {color_code}; border: 1px solid #999; border-radius: 15px;")
+            color_btn.clicked.connect(lambda checked, c=color_code: self.change_global_color(c))
+            
+            # 팔레트 레이아웃의 맨 앞에 추가
+            self.color_palette_layout.insertWidget(self.color_palette_layout.count()-1, color_btn)
+
+    def change_global_color(self, old_color):
+        dialog = ColorPaletteDialog(self)
+        
+        if dialog.exec():
+            new_color_hex = dialog.selected_color 
+            
+            #색상 변경 로직
+            if new_color_hex:
+                current_html = self.left_editor.toHtml()
+                escaped_old_color = re.escape(old_color)
+                clean_html = re.sub(
+                    fr'color:\s*{escaped_old_color}', 
+                    f'color: {new_color_hex}', 
+                    current_html, 
+                    flags=re.IGNORECASE
+                )
+
+                self.left_editor.setHtml(clean_html)
+                
+                self.update_html_source()
+                self.extract_and_display_colors()
 
 if __name__ == '__main__': 
     app = QApplication(sys.argv)
