@@ -74,7 +74,8 @@ class TextEditor(QMainWindow):
             body = soup.find('body')
 
             if body:
-                clean_content = "".join(str(c) for c in body.contents)
+                clean_content = body.prettify(formatter="html")
+                clean_content = clean_content.replace('<body>', '').replace('</body>', '').strip()
             else:
                 clean_content = raw_html
 
@@ -83,7 +84,7 @@ class TextEditor(QMainWindow):
 
             self.btn_toggle_view.setText("일반 모드")
             self.is_html_mode = True
-            self.editor.setStyleSheet("background-color: #2b2b2b; color: #a9b7c6;")
+            self.editor.setStyleSheet("font-family: 'Consolas', 'Monaco', monospace; background-color: #1e1e1e; color: #d4d4d4;")
 
         else:
             current_source = self.editor.toPlainText()
@@ -92,7 +93,7 @@ class TextEditor(QMainWindow):
             self.editor.setHtml(current_source)
 
             self.btn_toggle_view.setText("HTML")
-            self.editor.setStyleSheet("background-color: #ffffff;")
+            self.editor.setStyleSheet("")
             self.is_html_mode = False
 
     #색상 추출
