@@ -1,8 +1,7 @@
 import sys
 import re
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QSplitter, QTextEdit, 
-                             QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QLabel, 
-                             QColorDialog, QScrollArea, QFrame)
+                             QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QLabel, QFrame)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QPalette
 from bs4 import BeautifulSoup
@@ -49,15 +48,6 @@ class TextEditor(QMainWindow):
 
         layout.addWidget(splitter)
 
-        #button
-        button_layout = QHBoxLayout()
-        self.btn_remove_bg = QPushButton("배경색 제거")
-        self.btn_remove_bg.clicked.connect(self.remove_bg_colors)
-        self.btn_remove_bg.setStyleSheet("background-color: #f39c12; color: white; font-weight: bold; padding: 5px;")
-
-        button_layout.addWidget(self.btn_remove_bg)
-        layout.addLayout(button_layout)
-
         #tool_box
         toolbar_widget = QWidget()
         toolbar_widget.setFixedHeight(60)
@@ -87,25 +77,21 @@ class TextEditor(QMainWindow):
 
     #HTML 출력 함수
     def update_html_source(self):
+        self.left_editor.blockSignals(True)
+
         raw_html = self.left_editor.toHtml()
+        clean_bg_html = re.sub(r'background-color:[^;]+;?', '', raw_html)
+        clean_bg_html = re.sub(r'background:[^;]+;?', '', clean_bg_html)
+        self.left_editor.setHtml(clean_bg_html)
+        self.left_editor.blockSignals(False)
+
         soup = BeautifulSoup(raw_html, 'html.parser')
         body = soup.find('body')
-
         if body:
             clean_html=""
             for content in body.contents:
                 clean_html += str(content)
         self.right_editor.setPlainText(clean_html.strip())
-
-    #배경색 제거
-    def remove_bg_colors(self):
-        current_html = self.left_editor.toHtml()
-
-        clean_html = re.sub(r'background-color:[^;]+;?', '', current_html)
-        clean_html = re.sub(r'background:[^;]+;?', '', clean_html)
-
-        self.left_editor.setHtml(clean_html)
-        self.update_html_source()
 
     #색상 추출
     def extract_and_display_colors(self):
