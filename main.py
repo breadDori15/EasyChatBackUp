@@ -21,7 +21,6 @@ class TextEditor(QMainWindow):
         header.setFixedHeight(30)
         layout.addWidget(header)
         
-
         #body
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
@@ -45,6 +44,8 @@ class TextEditor(QMainWindow):
 
         layout.addWidget(splitter)
 
+
+        #button
         button_layout = QHBoxLayout()
         self.btn_remove_bg = QPushButton("배경색 제거")
         self.btn_remove_bg.clicked.connect(self.remove_background_colors)
@@ -64,6 +65,16 @@ class TextEditor(QMainWindow):
             for content in body.contents:
                 clean_html += str(content)
         self.right_editor.setPlainText(clean_html.strip())
+
+    def remove_background_colors(self):
+        current_html = self.left_editor.toHtml()
+
+        import re
+        clean_html = re.sub(r'background-color:[^;]+;?', '', current_html)
+        clean_html = re.sub(r'background:[^;]+;?', '', clean_html)
+
+        self.left_editor.setHtml(clean_html)
+        self.update_html_source()
 
 if __name__ == '__main__': 
     app = QApplication(sys.argv)
