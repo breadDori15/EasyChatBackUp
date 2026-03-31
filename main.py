@@ -1,6 +1,7 @@
 import sys
 from PyQt6.QtWidgets import QApplication, QMainWindow, QSplitter, QTextEdit, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QLabel
 from PyQt6.QtCore import Qt
+from bs4 import BeautifulSoup
 
 class TextEditor(QMainWindow):
     def __init__(self):
@@ -44,10 +45,25 @@ class TextEditor(QMainWindow):
 
         layout.addWidget(splitter)
 
+        button_layout = QHBoxLayout()
+        self.btn_remove_bg = QPushButton("배경색 제거")
+        self.btn_remove_bg.clicked.connect(self.remove_background_colors)
+        self.btn_remove_bg.setStyleSheet("background-color: #f39c12; color: white; font-weight: bold; padding: 5px;")
+
+        button_layout.addWidget(self.btn_remove_bg)
+        layout.addLayout(button_layout)
+
     #HTML 출력 함수
     def update_html_source(self):
-        html_content = self.left_editor.toHtml()
-        self.right_editor.setPlainText(html_content)
+        raw_html = self.left_editor.toHtml()
+        soup = BeautifulSoup(raw_html, 'html.parser')
+        body = soup.find('body')
+
+        if body:
+            clean_html=""
+            for content in body.contents:
+                clean_html += str(content)
+        self.right_editor.setPlainText(clean_html.strip())
 
 if __name__ == '__main__': 
     app = QApplication(sys.argv)
