@@ -1,2 +1,5 @@
 venv/
+build/
+dist
+BreadEditor.spec
 user_colors.json

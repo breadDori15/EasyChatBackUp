@@ -22,6 +22,7 @@ class TextEditor(QMainWindow):
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
 
+        #toolBar
         top_bar = QHBoxLayout()
 
         self.btn_toggle_view = QPushButton("HTML")
