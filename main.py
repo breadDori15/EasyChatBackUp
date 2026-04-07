@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 
 from ColorPalette import ColorPaletteDialog
 from SmartEditor import SmartTextEditor
+from ExcerptGenerator import ExcerptDialog
 
 class TextEditor(QMainWindow):
     def __init__(self):
@@ -33,9 +34,14 @@ class TextEditor(QMainWindow):
         self.btn_selection_color.setStyleSheet("background-color: #3498db; color: white; font-weight: bold;")
         self.btn_selection_color.clicked.connect(self.apply_color_to_selection)
 
+        self.btn_excerpt = QPushButton("발췌 이미지")
+        self.btn_excerpt.setStyleSheet("background-color: #9b59b6; color: white; font-weight: bold;")
+        self.btn_excerpt.clicked.connect(self.open_excerpt_tool)
+        
         top_bar.addWidget(self.btn_toggle_view)
         top_bar.addWidget(self.btn_selection_color)
         top_bar.addStretch()
+        top_bar.addWidget(self.btn_excerpt)
         layout.addLayout(top_bar)
         
         #body
@@ -204,6 +210,21 @@ class TextEditor(QMainWindow):
                 
                 # 하단 팔레트 즉시 갱신
                 self.extract_and_display_colors()
+
+    def open_excerpt_tool(self):
+        cursor = self.editor.textCursor()
+        if not cursor.hasSelection():
+            # 드래그 안 했을 때 안내
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "알림", "발췌할 문구를 마우스로 드래그해 주세요!")
+            return
+        
+        text = cursor.selectedText()
+        # 개행 문자 처리 (드래그 시 발생하는 특수문자 제거)
+        text = text.replace('\u2029', '\n') 
+        
+        dialog = ExcerptDialog(text, self)
+        dialog.exec()
 
 if __name__ == '__main__': 
     app = QApplication(sys.argv)
