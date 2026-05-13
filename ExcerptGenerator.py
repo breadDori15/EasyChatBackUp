@@ -9,8 +9,9 @@ class ExcerptDialog(QDialog):
         self.original_text = text
         self.bg_color = QColor("#ffffff")
         self.text_color = QColor("#2c3e50")
-        self.font = QFont("NanumMyeongjo", 24)
-        if not self.font.exactMatch():self.font.setFamily("Batang")
+        self.font = QFont("NanumMyeongjo", 20)
+        if not self.font.exactMatch():
+            self.font.setFamily("Batang")
 
         self.initUI()
 
@@ -47,25 +48,45 @@ class ExcerptDialog(QDialog):
         self.update_preview()
 
     def update_preview(self):
+        # 1. 고해상도 캔버스 생성
         self.final_image = QImage(1080, 1080, QImage.Format.Format_ARGB32)
         self.final_image.fill(self.bg_color)
 
+        # 2. 페인터 시작
         painter = QPainter(self.final_image)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing) # 텍스트 안티앨리어싱 추가
 
-        painter.setFont(self.font)
+        if isinstance(self.font, QFont):
+            painter.setFont(self.font)
+        else:
+            self.font = QFont("Batang", 20)
+            painter.setFont(self.font)
+            
         painter.setPen(self.text_color)
 
-        margin = 120
-        rect = QRect(margin, margin, 1080 - (margin*2), 1080 - (margin*2 + 100))
+        # 4. 텍스트 영역 계산 및 그리기
+        margin = 150
+        rect = QRect(margin, margin, 1080 - (margin * 2), 1080 - (margin * 2))
+        
+        # 인용구 스타일로 텍스트 구성
+        display_text = f"{self.original_text}"
+        painter.drawText(
+            rect, 
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter | Qt.TextFlag.TextWordWrap, 
+            display_text
+        )
 
-        display_text = f"\n{self.original_text}\n"
-        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap, display_text)
-
+        # 5. 페인터 종료
         painter.end()
 
-        preview_pixmap = QPixmap.fromImage(self.final_image.scaled(400, 400, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-        self.preview_label.setPixmap(preview_pixmap)
+        # 6. 미리보기 업데이트
+        pixmap = QPixmap.fromImage(self.final_image.scaled(
+            400, 400, 
+            Qt.AspectRatioMode.KeepAspectRatio, 
+            Qt.TransformationMode.SmoothTransformation
+        ))
+        self.preview_label.setPixmap(pixmap)
  
     def choose_bg_color(self):
         color = QColorDialog.getColor(self.bg_color,self)

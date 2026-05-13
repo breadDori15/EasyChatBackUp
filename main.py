@@ -204,23 +204,19 @@ class TextEditor(QMainWindow):
                 fmt = QTextCharFormat()
                 fmt.setForeground(QColor(new_color_hex))
                 
-                # 선택 영역에 서식 병합 (기존 폰트 등은 유지하고 색상만 변경)
                 cursor.mergeCharFormat(fmt)
                 self.editor.setTextCursor(cursor)
                 
-                # 하단 팔레트 즉시 갱신
                 self.extract_and_display_colors()
 
     def open_excerpt_tool(self):
         cursor = self.editor.textCursor()
         if not cursor.hasSelection():
-            # 드래그 안 했을 때 안내
             from PyQt6.QtWidgets import QMessageBox
             QMessageBox.warning(self, "알림", "발췌할 문구를 마우스로 드래그해 주세요!")
             return
         
         text = cursor.selectedText()
-        # 개행 문자 처리 (드래그 시 발생하는 특수문자 제거)
         text = text.replace('\u2029', '\n') 
         
         dialog = ExcerptDialog(text, self)
